@@ -1,5 +1,27 @@
 # yourapps
 
+## 6.1.0
+
+### Minor Changes
+
+- ## Conditional Forms, Consensus Review, Interview Rooms & Components V2 Panels
+  
+  Upgraded YourApps with conditional form logic, staff consensus voting, private interview rooms, applicant clarifications, scheduled open/close windows, and full Discord Components V2 Apply panels and review cards.
+  
+  ### Added
+  
+  - **Conditional Skip Logic & Answer Validation**: Show or skip questions dynamically based on earlier answers (`equals`, `not equals`, or `contains`) and validate text or numeric responses with length bounds, min/max values, URLs, emails, Discord IDs, or custom patterns.
+  - **Staff Consensus Voting, Internal Notes & Follow-Up Clarifications**: Reviewers can upvote or downvote submissions with optional auto-approve and auto-deny vote thresholds, attach private staff-only notes, and request follow-up clarifications that applicants can answer directly in Discord or on the web.
+  - **1-Click Private Interview Rooms & Native Staff Polls**: Open private interview threads or channels between applicants and reviewers directly from a submission card, and optionally attach native Discord polls to incoming applications.
+  - **Scheduled Windows, Submission Caps & Anonymous Forms**: Schedule automatic open and close dates, auto-close positions once submission or approval caps are reached, and run anonymous polls or feedback forms that hide applicant identities from staff views.
+  - **Applicant Self-Service Controls**: Applicants can answer follow-up clarification prompts or withdraw active applications directly from `/submissions` or their Direct Messages.
+  
+  ### Changed
+  
+  - **Components V2 Apply Panels, Review Cards & DMs**: Upgraded live channel Apply panels, submission log cards, archive transcripts, interview room cards, and applicant Direct Messages to native Discord Components V2 layouts—rendering inline 1-click Apply/Vote buttons for up to 8 positions and automatic dropdown selectors for larger forms.
+  - **Automatic Apply Panel Synchronization**: Selecting or changing a server's Apply Panel Channel automatically publishes, moves, self-heals, or cleans up the live Discord Apply panel and keeps position availability synced in real time.
+  - **Full Lifecycle Role Triggers & Modal Reliability**: Expanded automatic role actions to cover pending submission roles, approval grant/remove roles, and denial grant/remove roles while improving modal responsiveness and role permission checks across servers.
+
 ## 1.0.0
 
 ### Major Changes

@@ -58,19 +58,34 @@ export function buildPositionsListV2(params: { guildId: string; guildName: strin
 	slice.forEach((p, idx) => {
 		const isOpen = p.state === 'open';
 		const qCount = Array.isArray(p.questions) ? p.questions.length : 0;
+		const scheduleNotes: string[] = [];
+		if (!isOpen && p.opensAt) {
+			const ts = Math.floor(new Date(p.opensAt).getTime() / 1000);
+			if (ts > 0) scheduleNotes.push(`Opens <t:${ts}:R>`);
+		}
+		if (isOpen && p.closesAt) {
+			const ts = Math.floor(new Date(p.closesAt).getTime() / 1000);
+			if (ts > 0) scheduleNotes.push(`Closes <t:${ts}:R>`);
+		}
+		const scheduleStr = scheduleNotes.length > 0 ? ` • ${scheduleNotes.join(' • ')}` : '';
 		const descSnippet = p.description ? `\n${String(p.description).slice(0, 160)}${String(p.description).length > 160 ? '…' : ''}` : '';
 		const webApplyUrl = `${appUrl}/servers/${encodeURIComponent(guildId)}/applications/${encodeURIComponent(String(p.id))}`;
+		const isPoll = p.category === 'poll';
 
-		container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`${isOpen ? '🟢' : '🔒'} **${p.name}** • \`${qCount} question${qCount === 1 ? '' : 's'}\`${descSnippet}`));
+		container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`${isOpen ? '🟢' : '🔒'} **${p.name}** • \`${qCount} question${qCount === 1 ? '' : 's'}\`${scheduleStr}${descSnippet}`));
 
 		container.addActionRowComponents(
 			new ActionRowBuilder<ButtonBuilder>().addComponents(
 				new ButtonBuilder()
 					.setCustomId(`ya:apply:start:${p.id}`)
-					.setLabel(isOpen ? 'Apply in Discord' : 'Closed')
+					.setLabel(isOpen ? (isPoll ? 'Vote in Discord' : 'Apply in Discord') : 'Closed')
 					.setStyle(isOpen ? ButtonStyle.Primary : ButtonStyle.Secondary)
 					.setDisabled(!isOpen),
-				new ButtonBuilder().setLabel('Apply on Web').setURL(webApplyUrl).setStyle(ButtonStyle.Link).setDisabled(!isOpen)
+				new ButtonBuilder()
+					.setLabel(isPoll ? 'Vote on Web' : 'Apply on Web')
+					.setURL(webApplyUrl)
+					.setStyle(ButtonStyle.Link)
+					.setDisabled(!isOpen)
 			)
 		);
 
@@ -117,19 +132,21 @@ export function buildPositionsListV2(params: { guildId: string; guildName: strin
 export function buildPositionDetailV2(params: { guildId: string; position: any; accent: number; returnPage?: number }): ContainerBuilder {
 	const { guildId, position: pos, accent, returnPage = 0 } = params;
 	const isOpen = pos.state === 'open';
+	const isPoll = pos.category === 'poll';
 	const questions: any[] = Array.isArray(pos.questions) ? pos.questions : [];
 	const webApplyUrl = `${getAppUrl()}/servers/${encodeURIComponent(guildId)}/applications/${encodeURIComponent(String(pos.id))}`;
 
 	const qLines =
 		questions.length > 0
 			? questions
-					.map((q, idx) => `**${idx + 1}.** ${q.question} *(${q.type}${q.required !== false ? ', required' : ''})*`)
+					.map((q, idx) => `**${idx + 1}.** ${q.question} *(${q.type}${q.required !== false ? ', required' : ''}${q.condition?.questionId ? ', conditional' : ''})*`)
 					.join('\n')
 					.slice(0, 2800)
 			: '*No questions configured yet.*';
 
 	const cooldown = pos.cooldown ? formatDurationSeconds(pos.cooldown) : 'None';
 	const minJoin = pos.minimumJoinTime ? formatDurationSeconds(pos.minimumJoinTime) : 'None';
+	const minAcct = pos.minimumAccountAge ? formatDurationSeconds(pos.minimumAccountAge) : 'None';
 	const reqRoles = Array.isArray(pos.requiredRoles) && pos.requiredRoles.length > 0 ? pos.requiredRoles.map((r: string) => `<@&${r}>`).join(', ') : 'None';
 
 	return new ContainerBuilder()
@@ -139,16 +156,20 @@ export function buildPositionDetailV2(params: { guildId: string; position: any; 
 			new ActionRowBuilder<ButtonBuilder>().addComponents(
 				new ButtonBuilder()
 					.setCustomId(`ya:apply:start:${pos.id}`)
-					.setLabel(isOpen ? 'Apply in Discord' : 'Closed')
+					.setLabel(isOpen ? (isPoll ? 'Vote in Discord' : 'Apply in Discord') : 'Closed')
 					.setStyle(isOpen ? ButtonStyle.Primary : ButtonStyle.Secondary)
 					.setDisabled(!isOpen),
-				new ButtonBuilder().setLabel('Apply on Web').setURL(webApplyUrl).setStyle(ButtonStyle.Link).setDisabled(!isOpen)
+				new ButtonBuilder()
+					.setLabel(isPoll ? 'Vote on Web' : 'Apply on Web')
+					.setURL(webApplyUrl)
+					.setStyle(ButtonStyle.Link)
+					.setDisabled(!isOpen)
 			)
 		)
 		.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
 		.addTextDisplayComponents(new TextDisplayBuilder().setContent(`**Questions (${questions.length})**\n${qLines}`))
 		.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-		.addTextDisplayComponents(new TextDisplayBuilder().setContent(`**Cooldown:** ${cooldown} • **Min Server Time:** ${minJoin}\n**Required Roles:** ${reqRoles}`))
+		.addTextDisplayComponents(new TextDisplayBuilder().setContent(`**Cooldown:** ${cooldown} • **Min Server Time:** ${minJoin} • **Min Account Age:** ${minAcct}\n**Required Roles:** ${reqRoles}`))
 		.addActionRowComponents(
 			new ActionRowBuilder<ButtonBuilder>().addComponents(new ButtonBuilder().setCustomId(`ya:pos:page:${returnPage}`).setLabel('← All Positions').setStyle(ButtonStyle.Secondary))
 		);

@@ -6,10 +6,13 @@ import { XernerxClient } from '@xernerx/framework';
 import { XernerxHooks } from '@xernerx/hooks';
 import { XernerxStats } from '@xernerx/stats';
 import { XernerxWebsocket } from '@xernerx/websocket';
-import { getApiUrl, getWsUrl, isProductionTarget } from './lib/endpoints.js';
+import { getApiUrl, getWsUrl, isCanaryTarget, isProductionTarget } from './lib/endpoints.js';
 
-// Pin API_URL for @xernerx/framework internal engagement requests (dev in DEVELOPMENT, prod on CANARY + PRODUCTION)
-process.env.API_URL = getApiUrl();
+// Only pin API_URL automatically on CANARY when unset; in DEVELOPMENT api.dev.xernerx.com is behind
+// Vercel Deployment Protection (403) and would stall @xernerx/framework's 3s modal budget on fetchEngagement().
+if (!process.env.API_URL?.trim() && isCanaryTarget()) {
+	process.env.API_URL = 'https://api.canary.xernerx.com';
+}
 
 function restoreDocumentId<T>(res: T, fallbackId?: unknown): T {
 	if (!res || typeof res !== 'object' || Array.isArray(res)) return res;

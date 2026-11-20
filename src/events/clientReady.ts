@@ -4,7 +4,7 @@ import { EventBuilder } from '@xernerx/framework';
 import { Terminal } from '@xernerx/terminal';
 import { ActivityType, type PresenceStatusData } from 'discord.js';
 import { getAppUrl, getWsHealthUrl } from '../lib/endpoints.js';
-import { syncGuildMetadata } from '../lib/guildSync.js';
+import { syncGuildMetadata, syncGuildPanelsInBot } from '../lib/guildSync.js';
 
 export default class ClientReadyEvent extends EventBuilder {
 	private readonly logger = new Terminal({ scope: 'READY', spin: false });
@@ -28,11 +28,29 @@ export default class ClientReadyEvent extends EventBuilder {
 		try {
 			for (const [, guild] of this.client.guilds.cache) {
 				await syncGuildMetadata(ws, guild, false).catch(() => null);
+				await syncGuildPanelsInBot(ws, guild).catch(() => null);
 				await new Promise((resolve) => setTimeout(resolve, 25));
 			}
 			this.guildsSynced = true;
 		} finally {
 			this.syncingGuilds = false;
+		}
+	}
+
+	private async reconcileScheduledPositions() {
+		const ws = (this.client as any).websocket;
+		if (!ws) return;
+		try {
+			const res = await ws.update('yourapps', 'schedules', {}).catch(() => null);
+			const changedGuilds: string[] = Array.isArray(res?.changedGuilds) ? res.changedGuilds.map(String) : [];
+			for (const guildId of changedGuilds) {
+				const guild = this.client.guilds.cache.get(guildId);
+				if (guild) {
+					await syncGuildPanelsInBot(ws, guild).catch(() => null);
+				}
+			}
+		} catch {
+			// Ignore transient schedule reconciliation errors
 		}
 	}
 
@@ -76,6 +94,7 @@ export default class ClientReadyEvent extends EventBuilder {
 
 			if (connected) {
 				void this.syncGuilds();
+				void this.reconcileScheduledPositions();
 				if (isPrimaryCluster && client.user?.id) {
 					await ws
 						.update('xernerx', 'bots', {

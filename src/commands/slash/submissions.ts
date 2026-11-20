@@ -1,20 +1,19 @@
 /** @format */
 
 import { SlashCommandBuilder, type SlashCommandOptions } from '@xernerx/framework';
-import { ContainerBuilder, TextDisplayBuilder, type GuildMember, type User } from 'discord.js';
+import { ContainerBuilder, TextDisplayBuilder, type User } from 'discord.js';
 import { extractItems, getGuildConfig, resolveUserAccent } from '../../lib/guildSync.js';
-import { isGuildReviewer } from '../../lib/permissions.js';
+import { isAnyPositionReviewer, isPositionReviewer, resolveInteractionMember } from '../../lib/permissions.js';
 import { buildSubmissionsListV2 } from '../../lib/submissionsView.js';
 
 export async function replyWithSubmissionsV2(ws: any, interaction: any, targetUser?: User | null) {
 	const guild = interaction.guild;
 	if (!guild) return;
 
-	const member = (interaction.member as GuildMember)?.roles ? (interaction.member as GuildMember) : await guild.members.fetch(interaction.user.id);
-	const guildConfig = await getGuildConfig(ws, guild.id);
-	const reviewer = isGuildReviewer(member, guildConfig);
+	const [member, guildConfig, formsRes] = await Promise.all([resolveInteractionMember(interaction), getGuildConfig(ws, guild.id), ws.get('yourapps', 'forms', { guild: guild.id }).catch(() => null)]);
+	const positions = extractItems(formsRes);
+	const reviewer = isAnyPositionReviewer(member, guildConfig, positions, interaction.memberPermissions);
 
-	// Non-reviewers trying to filter on another user are blocked cleanly
 	if (targetUser && targetUser.id !== interaction.user.id && !reviewer) {
 		const denied = new ContainerBuilder()
 			.setAccentColor(0xef4444)
@@ -26,17 +25,27 @@ export async function replyWithSubmissionsV2(ws: any, interaction: any, targetUs
 		});
 	}
 
-	// Reviewers with no user option see all server submissions; non-reviewers default to their own submissions
 	const effectiveUser: User | null = targetUser || (reviewer ? null : interaction.user);
 	const scopeUserId = effectiveUser ? effectiveUser.id : 'all';
 
-	const query: Record<string, any> = { guild: guild.id, limit: 100 };
+	const query: Record<string, any> = {
+		guild: guild.id,
+		limit: 100,
+		...(reviewer ? {} : { viewerScope: 'applicant' }),
+	};
 	if (effectiveUser) {
 		query.userId = effectiveUser.id;
 	}
 
 	const [accent, res] = await Promise.all([resolveUserAccent(ws, interaction.user.id), ws.get('yourapps', 'submissions', query).catch(() => null)]);
-	const submissions = extractItems(res);
+	const posMap = new Map<string, any>();
+	for (const p of positions) posMap.set(String(p.id), p);
+
+	const rawSubs = extractItems(res);
+	const submissions =
+		reviewer && (!effectiveUser || effectiveUser.id !== interaction.user.id)
+			? rawSubs.filter((s: any) => isPositionReviewer(member, guildConfig, posMap.get(String(s.positionId)), interaction.memberPermissions))
+			: rawSubs;
 
 	const container = buildSubmissionsListV2({
 		guildId: guild.id,
@@ -62,16 +71,13 @@ export default class SubmissionsCommand extends SlashCommandBuilder {
 	constructor() {
 		super('submissions', {
 			name: 'submissions',
-			description: 'View application submissions on this server.',
+			description: 'View your application status, answer follow-ups, or inspect server submissions.',
 			defer: false,
-			permissions: {
-				user: ['ManageGuild'],
-			},
 			options: [
 				{
 					type: 'user',
 					name: 'user',
-					description: 'Filter submissions by a specific member.',
+					description: 'Filter submissions by a specific member (reviewers only).',
 					required: false,
 				},
 			],

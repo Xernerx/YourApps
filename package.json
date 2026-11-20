@@ -1,6 +1,6 @@
 {
 	"name": "yourapps",
-	"version": "1.0.0",
+	"version": "6.1.0",
 	"description": "Discord-native forms and applications bot for the Xernerx Suite.",
 	"main": "dist/shard.js",
 	"type": "module",
@@ -13,12 +13,12 @@
 		"shard": "tsc && node --env-file=.env dist/shard.js",
 		"start:standalone": "node --env-file=.env dist/main.js"
 	},
-	"engines": {
-		"node": ">=22"
-	},
 	"author": "Xernerx Studios",
 	"license": "SEE LICENSE IN LICENSE",
-	"packageManager": "pnpm@10.33.2",
+	"packageManager": "pnpm@12.21.0",
+	"engines": {
+		"node": ">=24"
+	},
 	"dependencies": {
 		"@xernerx/commands": "^0.2.7",
 		"@xernerx/framework": "^1.1.3",
